@@ -15,6 +15,7 @@ eps0=8.85e-12;
 
 E=380; % electron energy in eV
 v=sqrt(2*(E*q)/m); % electron velocity ~ 1.1e7 m/s
+global lamdB
 lamdB=2*pi*hbar/(m*v); % deBroglie wavelength
 
 D=125e-6; % Laser beam waist
@@ -48,7 +49,7 @@ x2=x2';
 
 Vpond=V0*(cos(k*x1)).^2; % ponderomotive potential
 
-w1=linspace(2e-6,200e-6,50);
+w1=linspace(2e-6,20e-6,5);
 cmax=zeros(size(w1)); % initializing central maximum position (shift)
 
 for idx=1:length(w1)
@@ -81,35 +82,20 @@ for idx=1:length(w1)
         end
     
         % This section computes the wf propagation from the first (incoherent source) slit of width w1 to the second (collimating) slit of width w2
-        
-        for i=1:length(x01)
-            for j=1:length(x0)
-                Kij=exp(1i*2*pi*sqrt((x01(i)-x0(j))^2+l0^2)/lamdB);
-                Psi_slit(i)=Psi_slit(i)+Kij*Psi_inc(j)*dx0;
-            end
-        end
+
+        Psi_slit=propagate(Psi_inc,x0,dx0,x01,l0);
         
         % This section computes the wf propagation from the second (collimating) slit to the laser
 
-        for i=1:length(x1)
-            for j=1:length(x01)
-                Kij=exp(1i*2*pi*sqrt((x1(i)-x01(j))^2+l1^2)/lamdB);
-                Psi(i)=Psi(i)+Kij*Psi_slit(j)*dx01;
-            end
-        end
+        Psi=propagate(Psi_slit,x01,dx01,x1,l1);
 
         % This section computes the wf after laser interaction
     
         Psi_grate=Psi.*exp(-1i*Vpond*t/hbar);
 
         % This section computes the wf propagation from the laser to the screen
-    
-        for i=1:length(x2)
-            for j=1:length(x1)
-                Kij=exp(1i*2*pi*sqrt((x2(i)-x1(j))^2+l2^2)/lamdB);
-                Psi_detect(i)=Psi_detect(i)+Kij*Psi_grate(j)*dx1;
-            end
-        end
+
+        Psi_detect=propagate(Psi_grate,x1,dx1,x2,l2);
     
         P_detect(:,iter)=conj(Psi_detect).*Psi_detect; % This line computes the detection probability for each delta
         P_detect(:,iter)=P_detect(:,iter)/trapz(x2,P_detect(:,iter));
@@ -147,3 +133,14 @@ xlabel('First delta location $\frac{w_1}{2}\ \mu m$','fontsize',15,'interpreter'
 ylabel('Central peak shift at detection screen $x_p\ \mu m$','fontsize',15,'interpreter','latex')
 
 timeElapsed=string(toc) + ' seconds' % execution time in minutes
+
+function Psi_out=propagate(Psi_in,x_in,dx,x_out,l)
+    global lamdB;
+	Psi_out=zeros(size(x_out));
+	for i=1:length(x_out)
+		for j=1:length(x_in)
+			Kij=exp(1j*2*pi*sqrt((x_out(i)-x_in(j))^2+l^2)/lamdB);
+			Psi_out(i)=Psi_out(i)+Kij*Psi_in(j)*dx;
+        end
+    end
+end
